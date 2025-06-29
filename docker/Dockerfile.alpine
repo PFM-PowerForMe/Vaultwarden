@@ -1,0 +1,24 @@
+FROM ghcr.io/pfm-powerforme/vaultwarden:main-alpine
+
+RUN ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo Asia/Shanghai > /etc/timezone
+
+RUN apk --no-cache add \
+        bash \
+        tar \
+        7zip \
+        unzip \
+        gnupg \
+        expect \
+        coreutils
+
+RUN curl https://gosspublic.alicdn.com/ossutil/install.sh | bash
+
+RUN rm -rf /tmp/* && rm -rf /var/cache/apk/* && mkdir -p /etc/default
+
+COPY docker/backup.sh /etc/periodic/daily/backup
+COPY docker/gpg.sh /gpg.sh
+COPY docker/start-alpine.sh /start-alpine.sh
+
+RUN chmod +x /gpg.sh && chmod +x /etc/periodic/daily/backup && chmod +x /start-alpine.sh
+
+CMD ["/start-alpine.sh"]

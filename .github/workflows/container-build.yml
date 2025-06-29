@@ -1,0 +1,139 @@
+name: PFM-Container-build
+
+on:
+  workflow_dispatch:  # click the button on Github repo!
+  workflow_call:
+
+permissions: write-all
+
+jobs:
+  docker-build:
+    name: Build Vaultwarden containers
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SOURCE_COMMIT: ${{ github.sha }}
+      SOURCE_REPOSITORY_URL: "https://github.com/${{ github.repository }}"
+      HAVE_GHCR_LOGIN: ${{ vars.GHCR_REPO != '' && github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
+    strategy:
+      matrix:
+        base_image: ["alpine"]
+
+    steps:
+      - name: '环境变量'
+        id: work_env
+        run: |
+          repo=${{ github.event.repository.name }}
+          platform=${{ matrix.platform }}
+          echo "image_name=${repo,,}" >> ${GITHUB_OUTPUT}
+          echo "IMAGE_NAME=${repo,,}" >> ${GITHUB_ENV}
+          echo "platform_pair=${platform//\//-}" >> ${GITHUB_OUTPUT}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> ${GITHUB_ENV}
+          echo "arch=${platform#*/}" >> ${GITHUB_OUTPUT}
+          echo "ARCH=${platform#*/}" >> ${GITHUB_ENV}
+          echo "GH=${{ vars.GHCR_REPO }}/${repo,,}" >> ${GITHUB_ENV}
+
+      - name: Initialize QEMU binfmt support
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
+          cache-binary: true
+          cleanup: true
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 2
+          driver-opts: |
+            network=host
+
+      - name: Checkout
+        uses: actions/checkout@v4 #v4.2.2
+        # We need fetch-depth of 0 so we also get all the tag metadata
+        with:
+          ref: main
+          persist-credentials: false
+          fetch-depth: 0
+
+      # Determine Base Tags and Source Version
+      - name: Determine Base Tags and Source Version
+        shell: bash
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          # Check which main tag we are going to build determined by ref_type
+          if [[ "${REF_TYPE}" == "tag" ]]; then
+            echo "BASE_TAGS=latest,${GITHUB_REF#refs/*/}" | tee -a "${GITHUB_ENV}"
+          elif [[ "${REF_TYPE}" == "branch" ]]; then
+            echo "BASE_TAGS=main" | tee -a "${GITHUB_ENV}"
+          fi
+
+          # Get the Source Version for this release
+          #GIT_EXACT_TAG="$(git describe --tags --abbrev=0 --exact-match 2>/dev/null || true)"
+          #if [[ -n "${GIT_EXACT_TAG}" ]]; then
+              #echo "SOURCE_VERSION=${GIT_EXACT_TAG}" | tee -a "${GITHUB_ENV}"
+          #else
+              #GIT_LAST_TAG="$(git describe --tags --abbrev=0)"
+              #echo "SOURCE_VERSION=${GIT_LAST_TAG}-${SOURCE_COMMIT:0:8}" | tee -a "${GITHUB_ENV}"
+          #fi
+          echo "SOURCE_VERSION=${SOURCE_COMMIT}-$(date +'%Y-%m-%d')" | tee -a "${GITHUB_ENV}"
+      # End Determine Base Tags
+
+
+      # Login to GitHub Container Registry
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        if: ${{ env.HAVE_GHCR_LOGIN == 'true' }}
+
+      - name: Add registry for ghcr.io
+        if: ${{ env.HAVE_GHCR_LOGIN == 'true' }}
+        shell: bash
+        env:
+          GHCR_REPO: ${{ env.GH }}
+        run: |
+          echo "CONTAINER_REGISTRIES=${CONTAINER_REGISTRIES:+${CONTAINER_REGISTRIES},}${GHCR_REPO}" | tee -a "${GITHUB_ENV}"
+
+      - name: Configure build cache from/to
+        shell: bash
+        env:
+          GHCR_REPO: ${{ env.GH }}
+          BASE_IMAGE: ${{ matrix.base_image }}
+        run: |
+          if [[ -n "${HAVE_GHCR_LOGIN}" ]]; then
+            echo "BAKE_CACHE_FROM=type=registry,ref=${GHCR_REPO}-buildcache:${BASE_IMAGE}" | tee -a "${GITHUB_ENV}"
+            echo "BAKE_CACHE_TO=type=registry,ref=${GHCR_REPO}-buildcache:${BASE_IMAGE},compression=zstd,mode=max" | tee -a "${GITHUB_ENV}"
+          else
+            echo "BAKE_CACHE_FROM="
+            echo "BAKE_CACHE_TO="
+          fi
+          
+
+      - name: Bake ${{ matrix.base_image }} containers
+        id: bake_vw
+        uses: docker/bake-action@v6
+        env:
+          BASE_TAGS: "${{ env.BASE_TAGS }}"
+          SOURCE_COMMIT: "${{ env.SOURCE_COMMIT }}"
+          SOURCE_VERSION: "${{ env.SOURCE_VERSION }}"
+          SOURCE_REPOSITORY_URL: "${{ env.SOURCE_REPOSITORY_URL }}"
+          CONTAINER_REGISTRIES: "${{ env.CONTAINER_REGISTRIES }}"
+        with:
+          pull: true
+          push: true
+          source: .
+          files: docker/docker-bake.hcl
+          targets: "${{ matrix.base_image }}-multi"
+          set: |
+            *.cache-from=${{ env.BAKE_CACHE_FROM }}
+            *.cache-to=${{ env.BAKE_CACHE_TO }}
+
+  Call-next-workflow:
+    permissions: write-all
+    needs: docker-build
+    uses: ./.github/workflows/custom-container-build.yml
+    secrets: inherit
