@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+init() {
+    apt-get -y update
+    apt-get -y --no-install-recommends upgrade
+    apt-get -y --no-install-recommends install lsb-release apt-transport-https ca-certificates curl wget xz-utils net-tools
+}
+
+s6() {
+    export s6_ver=$(wget -qO- https://api.github.com/repos/just-containers/s6-overlay/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    export s6_arch=$(arch)
+    wget -O /tmp/s6-overlay-noarch.tar.xz https://github.com/just-containers/s6-overlay/releases/download/${s6_ver}/s6-overlay-noarch.tar.xz
+    wget -O /tmp/s6-overlay-${s6_arch}.tar.xz https://github.com/just-containers/s6-overlay/releases/download/${s6_ver}/s6-overlay-${s6_arch}.tar.xz
+    wget -O /tmp/s6-overlay-symlinks-arch.tar.xz https://github.com/just-containers/s6-overlay/releases/download/${s6_ver}/s6-overlay-symlinks-arch.tar.xz
+    wget -O /tmp/s6-overlay-symlinks-noarch.tar.xz https://github.com/just-containers/s6-overlay/releases/download/${s6_ver}/s6-overlay-symlinks-noarch.tar.xz
+    tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz
+    tar -C / -Jxpf /tmp/s6-overlay-${s6_arch}.tar.xz
+    tar -C / -Jxpf /tmp/s6-overlay-symlinks-arch.tar.xz
+    tar -C / -Jxpf /tmp/s6-overlay-symlinks-noarch.tar.xz
+    rm /tmp/s6-overlay-noarch.tar.xz
+    rm /tmp/s6-overlay-${s6_arch}.tar.xz
+    rm /tmp/s6-overlay-symlinks-arch.tar.xz
+    rm /tmp/s6-overlay-symlinks-noarch.tar.xz
+    curl https://www.sourceguardian.com/loaders/download/loaders.linux-${s6_arch}.tar.gz -o /tmp/loaders.tar.gz
+    mkdir -p /custom/php/sourceguardian
+    tar xzf /tmp/loaders.tar.gz -C /custom/php/sourceguardian
+    rm /tmp/loaders.tar.gz
+}
+
+
+package() {
+    apt-get -y --no-install-recommends install \
+        caddy \
+        ca-certificates \
+        curl \
+        libmariadb-dev-compat \
+        libpq5 \
+        openssl \
+        tzdata \
+        bash \
+        tar \
+        7zip \
+        unzip \
+        gnupg \
+        expect \
+        coreutils \
+        cron
+}
+
+
+fs() {
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+    # VW
+    mkdir /data
+    # Date
+    ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo Asia/Shanghai > /etc/timezone
+    # Caddy Cache
+    mkdir -p /tmp/caddy
+    # Bin
+    ln -s /usr/bin/caddy /usr/local/sbin/caddy
+    ln -s /usr/sbin/cron /usr/local/sbin/cron
+    # S6
+    chmod +x /etc/s6-overlay/scripts/*
+    chmod +x /etc/s6-overlay/s6-rc.d/cron/data/check
+    chmod +x /etc/s6-overlay/s6-rc.d/caddy/data/check
+    chmod +x /etc/s6-overlay/s6-rc.d/vaultwarden/data/check
+    # Conf
+    ln -sfn /custom/caddy/Caddyfile /etc/caddy/Caddyfile
+}
+
+init
+s6
+package
+fs

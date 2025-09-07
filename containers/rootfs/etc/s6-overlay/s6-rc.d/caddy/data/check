@@ -1,0 +1,9 @@
+#!/command/with-contenv sh
+
+if netstat -tulnp | grep -q ':8080\b'; then
+    echo "✅ CADDY RUN."
+    exit 0
+else
+    echo "❎ CADDY STOP."
+    exit 1
+fi

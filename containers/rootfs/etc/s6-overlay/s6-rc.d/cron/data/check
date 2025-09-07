@@ -1,0 +1,11 @@
+#!/command/with-contenv sh
+
+CRON_PID="/var/run/crond.pid"
+
+if [ -f "$CRON_PID" ]; then
+    echo "✅ CRON RUN."
+    exit 0
+else
+    echo "❎ CRON STOP."
+    exit 1
+fi
