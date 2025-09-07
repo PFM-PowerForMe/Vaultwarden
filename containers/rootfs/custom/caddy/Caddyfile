@@ -1,0 +1,21 @@
+{
+	admin off
+	auto_https off
+	ocsp_stapling off
+	storage file_system /tmp/caddy
+	storage_clean_interval 24h
+}
+
+:8080 {
+	log {
+		output stdout
+		format console
+	}
+
+	@blocked {
+	path /admin*
+	}
+	respond @blocked 404
+
+	reverse_proxy http://127.0.0.1:8000
+}

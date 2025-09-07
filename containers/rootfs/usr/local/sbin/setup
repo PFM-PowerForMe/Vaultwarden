@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+init() {
+    apt-get -y update
+    apt-get -y --no-install-recommends upgrade
+}
+
+package() {
+    apt-get -y --no-install-recommends install \
+        caddy \
+        libmariadb3 \
+        libpq5 \
+        openssl \
+        tzdata \
+        bash \
+        tar \
+        7zip \
+        unzip \
+        gnupg \
+        expect \
+        coreutils
+}
+
+fs() {
+    # VW
+    mkdir -p /vw/data
+    # Caddy Cache
+    mkdir -p /tmp/caddy
+    # Bin
+    ln -s /usr/bin/caddy /usr/local/sbin/caddy
+    # Conf
+    ln -sfn /custom/caddy/Caddyfile /etc/caddy/Caddyfile
+}
+
+init
+package
+fs
+/usr/local/sbin/fix_mod

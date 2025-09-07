@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+if [ -n "${ENCRYPTION_PUB_KEY+set}" ] && [ -n "${ENCRYPTION_PUB_ID+set}" ]; then
+    printf '%s\n' "${ENCRYPTION_PUB_KEY}" | gpg --import
+    /usr/bin/expect -f /etc/s6-overlay/scripts/expect-gpg
+fi
