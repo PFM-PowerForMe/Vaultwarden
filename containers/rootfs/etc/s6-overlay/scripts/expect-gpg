@@ -13,8 +13,8 @@ send "$trust_level\r"
 expect "(y/N)"
 send "y\r"
 expect {
-	"gpg\>" {
-    	send "quit\r"
+    "gpg\>" {
+        send "quit\r"
         exp_continue
     }
     eof
