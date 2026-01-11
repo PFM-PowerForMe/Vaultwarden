@@ -36,7 +36,7 @@ RUN apt-get update && \
     xx-apt-get install -y \
         --no-install-recommends \
         gcc \
-        libmariadb3 \
+        libmariadb-dev \
         libpq-dev \
         libpq5 \
         libssl-dev \
@@ -70,7 +70,7 @@ COPY --from=git /source/src/ src/
 COPY --from=git /source/rustfmt.toml rustfmt.toml
 COPY --from=git /source/VW_VERSION VW_VERSION
 RUN export VW_VERSION=$(cat VW_VERSION)
-ARG CARGO_PROFILE=release
+ARG CARGO_PROFILE=release-micro
 ARG DB=sqlite,mysql,postgresql
 RUN source /env-cargo && \
     cargo build --features ${DB} --profile "${CARGO_PROFILE}" --target "${CARGO_TARGET}" && \
