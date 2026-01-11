@@ -2,5 +2,5 @@
 
 if [ -n "${ENCRYPTION_PUB_KEY+set}" ];then
     printf '%s\n' "${ENCRYPTION_PUB_KEY}" | gpg --import
-    /usr/bin/expect -f /etc/s6-overlay/scripts/init-gpg
+    /usr/bin/expect -f /etc/s6-overlay/scripts/expect-gpg
 fi
