@@ -5,7 +5,8 @@ set -euo pipefail
 init() {
     apt-get -y update
     apt-get -y --no-install-recommends upgrade
-    apt-get -y --no-install-recommends install lsb-release apt-transport-https ca-certificates curl wget xz-utils net-tools
+    apt-get -y --no-install-recommends install lsb-release apt-transport-https ca-certificates curl wget xz-utils net-tools cron
+    sed -i 's%^\([^#]*\)\(session\s\+required\s\+pam_loginuid\.so\)$%\1#\2%' /etc/pam.d/cron
 }
 
 s6() {
@@ -45,8 +46,7 @@ package() {
         unzip \
         gnupg \
         expect \
-        coreutils \
-        cron
+        coreutils
 }
 
 
