@@ -1,0 +1,1 @@
+0 8 * * * root /usr/local/sbin/backup

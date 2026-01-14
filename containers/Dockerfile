@@ -102,10 +102,10 @@ ENV ROCKET_PROFILE="production" \
      DEBIAN_FRONTEND=noninteractive
 COPY rootfs/ /
 RUN chmod +x /usr/local/sbin/setup && setup
-COPY --from=scripts-builder /PY/dist/backup /etc/cron.daily/backup
+COPY --from=scripts-builder /PY/dist/backup /usr/local/sbin/backup
 COPY --from=frontend /frontend/ /vw/web-vault/
 COPY --from=backend /backend/target/final/vaultwarden /vw/vaultwarden
-RUN chmod +x /etc/cron.daily/backup && \
+RUN chmod +x /usr/local/sbin/backup && \
      chmod +x /vw/vaultwarden
 
 WORKDIR /vw/
