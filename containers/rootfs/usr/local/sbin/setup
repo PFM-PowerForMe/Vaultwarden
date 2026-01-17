@@ -64,7 +64,6 @@ fs() {
     ln -s /usr/sbin/cron /usr/local/sbin/cron
     # S6
     chmod +x /etc/s6-overlay/scripts/*
-    chmod +x /etc/s6-overlay/s6-rc.d/cron/data/check
     chmod +x /etc/s6-overlay/s6-rc.d/caddy/data/check
     chmod +x /etc/s6-overlay/s6-rc.d/vaultwarden/data/check
     # Conf
